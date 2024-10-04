@@ -20,7 +20,7 @@ CHROMA_SERVER_PORT = CHROMA_CONFIG['PORT']
 
 client = chromadb.HttpClient(host=CHROMA_SERVICE_HOST, port=CHROMA_SERVER_PORT)
 collection_name = "face_collection"
-face_collection = client.get_collection(collection_name)
+face_collection = client.get_or_create_collection(name=collection_name)
 
 
 def save_to_chroma(user_id, embedding):
