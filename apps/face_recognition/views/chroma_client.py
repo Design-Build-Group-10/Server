@@ -8,8 +8,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from apps.face_recognition.algorithm.face_processing import process_frame
 from common.utils.chroma_client import save_to_chroma, delete_from_chroma
+from common.utils.face_process import process_frame
 from common.utils.response import success_response, bad_request_response, internal_error_response
 
 

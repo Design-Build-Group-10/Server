@@ -17,8 +17,16 @@ import numpy as np
 from common.utils.chroma_client import face_collection
 from common.utils.face_analysis import FaceAnalysis
 
-faceAnalysis = FaceAnalysis(providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
-faceAnalysis.prepare(ctx_id=0, det_size=(640, 640))
+# 确保只实例化一次
+faceAnalysis = None
+
+
+def get_face_analysis():
+    global faceAnalysis
+    if faceAnalysis is None:
+        faceAnalysis = FaceAnalysis(providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
+        faceAnalysis.prepare(ctx_id=0, det_size=(640, 640))
+    return faceAnalysis
 
 
 def process_frame(frame):
@@ -44,10 +52,10 @@ def process_frame(frame):
     """
 
     original_frame = frame.copy()
-    faces = faceAnalysis.get(frame)
+    faces = get_face_analysis().get(frame)
 
     key_points_image = np.ones_like(frame) * 255
-    key_points_image = faceAnalysis.draw_on(key_points_image, faces)
+    key_points_image = get_face_analysis().draw_on(key_points_image, faces)
 
     processed_faces = []
     unknown_faces = []

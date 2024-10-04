@@ -13,7 +13,10 @@ Contact: zhaozy@example.com
 
 import chromadb
 
-from apps.face_recognition.algorithm.config import CHROMA_SERVICE_HOST, CHROMA_SERVER_PORT
+from config.settings import CHROMA_CONFIG
+
+CHROMA_SERVICE_HOST = CHROMA_CONFIG['HOST']
+CHROMA_SERVER_PORT = CHROMA_CONFIG['PORT']
 
 client = chromadb.HttpClient(host=CHROMA_SERVICE_HOST, port=CHROMA_SERVER_PORT)
 collection_name = "face_collection"

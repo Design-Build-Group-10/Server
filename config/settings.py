@@ -37,7 +37,8 @@ def load_config():
             'CHROMA_CONFIG': {
                 'HOST': decouple_config('CHROMA_SERVICE_HOST'),
                 'PORT': decouple_config('CHROMA_SERVER_PORT', cast=int),
-            }
+            },
+            'ALLOWED_HOSTS': decouple_config('ALLOWED_HOSTS', cast=Csv()),
         }
     else:
         # 读取测试环境配置文件
@@ -76,8 +77,12 @@ database_config['OPTIONS'] = {
 DATABASES = {
     'default': database_config
 }
+CHROMA_CONFIG = config['CHROMA_CONFIG']
 
-ALLOWED_HOSTS = ['*']
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
+else:
+    ALLOWED_HOSTS = config['ALLOWED_HOSTS']
 
 # Application definition
 
