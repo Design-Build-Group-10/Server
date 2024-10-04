@@ -79,10 +79,12 @@ DATABASES = {
 }
 CHROMA_CONFIG = config['CHROMA_CONFIG']
 
-if DEBUG:
-    ALLOWED_HOSTS = ['*']
-else:
-    ALLOWED_HOSTS = config['ALLOWED_HOSTS']
+# if DEBUG:
+#     ALLOWED_HOSTS = ['*']
+# else:
+#     ALLOWED_HOSTS = config['ALLOWED_HOSTS']
+
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
