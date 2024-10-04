@@ -7,8 +7,11 @@ ENV PRODUCTION=True
 ENV DEBUG=False
 
 RUN apt-get update && \
-    apt-get install -y gcc libmariadb-dev pkg-config && \
+    apt-get install -y gcc libmariadb-dev pkg-config build-essential \
+    python3-dev libgl1-mesa-glx libglib2.0-0 && \
     apt-get clean
+
+RUN pip install --upgrade pip
 
 RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 8000
