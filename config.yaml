@@ -1,0 +1,12 @@
+secret_key: "django-insecure-*&jy8si8ew8%-dj+^b!9ze#z5xcds-(^65as(zg2n##x=*ge#*"
+debug: true  # 生产环境中应设置为 false
+database:
+  engine: "dj_db_conn_pool.backends.mysql"
+  name: "server_bot"
+  user: "root"
+  password: "dab_2024"
+  host: "localhost"
+  port: "3306"
+chroma:
+  host: "localhost"
+  port: "3000"
