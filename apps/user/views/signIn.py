@@ -91,6 +91,9 @@ class FaceLoginView(GenericAPIView):
             elif num_faces > 1:
                 return bad_request_response("Multiple faces detected. Please upload an image with only one face.")
 
+            if result['processed_faces'][0]['identity'] == 'unknown':
+                return bad_request_response("Face not recognized in the system")
+
             # 7. 获取第一个人脸的embedding
             embedding = result['processed_faces'][0]['embedding']
 
@@ -110,10 +113,6 @@ class FaceLoginView(GenericAPIView):
 
             # 生成 JWT token
             refresh = RefreshToken.for_user(user)
-            tokens = {
-                'refreshToken': str(refresh),
-                'accessToken': str(refresh.access_token),
-            }
 
             # 返回 token
             return success_response({

@@ -74,7 +74,6 @@ class FaceDeleteView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        print(request.data)
         # 1. 获取 identity (user_id) 参数
         user_id = request.data.get('identity')
 
