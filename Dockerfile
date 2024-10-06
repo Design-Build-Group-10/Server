@@ -4,7 +4,7 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /app
 COPY . .
 ENV PRODUCTION=True
-ENV DEBUG=False
+ENV DEBUG=True
 
 RUN apt-get update && \
     apt-get install -y gcc libmariadb-dev pkg-config build-essential \
