@@ -15,6 +15,7 @@ from config import settings
 
 
 class ProfileView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     @staticmethod
