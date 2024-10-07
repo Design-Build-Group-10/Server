@@ -11,18 +11,22 @@ import os
 
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.security.websocket import AllowedHostsOriginValidator
 from django.core.asgi import get_asgi_application
-from django.urls import path
 
-from apps.robot.consumers import CameraConsumer
+from apps.robot.routing import websocket_urlpatterns
+from apps.robot.routing import websocket_urlpatterns as robot_camera_websocket_urlpatterns
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
-    "websocket": AuthMiddlewareStack(
-        URLRouter([
-            path('/ws/camera/', CameraConsumer.as_asgi()),
-        ])
+    # "websocket": AuthMiddlewareStack(
+    #     URLRouter([
+    #         path('ws/camera/', CameraConsumer.as_asgi()),
+    #     ])
+    # ),
+    "websocket": AllowedHostsOriginValidator(
+        AuthMiddlewareStack(URLRouter(websocket_urlpatterns + robot_camera_websocket_urlpatterns))
     ),
 })
