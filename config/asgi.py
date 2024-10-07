@@ -22,7 +22,7 @@ application = ProtocolTypeRouter({
     "http": get_asgi_application(),
     "websocket": AuthMiddlewareStack(
         URLRouter([
-            path('ws/camera/', CameraConsumer.as_asgi()),
+            path('/ws/camera/', CameraConsumer.as_asgi()),
         ])
     ),
 })
