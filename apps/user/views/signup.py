@@ -1,7 +1,6 @@
 # user/views/signup.py
 import os
 import re
-import uuid
 
 import cv2
 from django.contrib.auth import login
@@ -14,9 +13,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.user.models import User
 from apps.user.serializers import RegisterSerializer, UserSerializer
 from common.utils.chroma_client import save_to_chroma
-from common.utils.face_process import process_frame
+from common.utils.face_process import process_frame, save_face_image, save_process_record
 from common.utils.response import success_response, bad_request_response, internal_error_response
-from config import settings
 
 
 # 用户注册视图
@@ -24,7 +22,7 @@ class RegisterView(GenericAPIView):
     authentication_classes = []
     permission_classes = [AllowAny]
     serializer_class = RegisterSerializer
-    scene = 'register'
+    scene = 'register'  # 注册场景，保存到 'register' 文件夹
 
     queryset = User.objects.all()
 
@@ -45,6 +43,7 @@ class RegisterView(GenericAPIView):
             if phone and not self.is_valid_phone(phone):
                 return bad_request_response("Invalid phone format")
 
+            # 检查用户名是否已存在
             if User.objects.filter(username=username).exists():
                 raise ValidationError('UserId already exists.')
 
@@ -54,15 +53,10 @@ class RegisterView(GenericAPIView):
 
             face_image = request.FILES.get('face')
 
-            # 创建一个临时目录来保存face图像，执行人脸识别操作
-            temp_folder = os.path.join(str(settings.MEDIA_ROOT), 'temp_face_images', str(uuid.uuid4()))
-            os.makedirs(temp_folder, exist_ok=True)
-
-            face_image_filename = str(uuid.uuid4()) + ".jpg"
-            face_image_path = os.path.join(temp_folder, face_image_filename)
-            with open(face_image_path, 'wb+') as destination:
-                for chunk in face_image.chunks():
-                    destination.write(chunk)
+            # 通过 save_face_image 保存上传的 face 图像
+            res = save_face_image(self.scene, face_image)
+            face_image_path = res['face_image_path']
+            folder = res['folder']
 
             # 使用 OpenCV 读取图片文件
             frame = cv2.imread(face_image_path)
@@ -91,7 +85,7 @@ class RegisterView(GenericAPIView):
                 return success_response(data={"user": UserSerializer(existing_user).data},
                                         message='Face already exists in the system. Registration not allowed.')
 
-            # 获取第一个人脸的embedding
+            # 获取第一个人脸的 embedding
             embedding = result['processed_faces'][0]['embedding']
 
             # 创建用户
@@ -102,21 +96,29 @@ class RegisterView(GenericAPIView):
                 email=email,
             )
 
-            # 将用户的face图像保存到用户的个人文件夹
-            user_folder = os.path.join(str(settings.MEDIA_ROOT), 'face_images', user.username)
-            os.makedirs(user_folder, exist_ok=True)
-            face_image_path = os.path.join(user_folder, face_image_filename)
-            os.rename(os.path.join(temp_folder, face_image_filename), face_image_path)
-
-            # 将用户的face字段更新为新上传的图像路径
-            relative_face_path = os.path.join('face_images', user.username, face_image_filename)
+            # 更新用户的 face 字段
+            relative_face_path = os.path.join('face_images', user.username, res['face_image_filename'])
             user.face = relative_face_path
             user.save()
 
-            # 将embedding与用户的username绑定，并保存到CHROMA数据库中
+            # 将 embedding 与用户的 username 绑定，并保存到 CHROMA 数据库中
             save_to_chroma(user.username, embedding)
 
-            # 自动登录并返回双token
+            # 调用 save_process_record 保存处理记录到数据库
+            frame_path = os.path.join(folder, 'processed_frame.jpg')
+            key_points_image_path = os.path.join(folder, 'key_points_image.jpg')
+            cv2.imwrite(frame_path, result['frame'])
+            cv2.imwrite(key_points_image_path, result['key_points_image'])
+
+            save_process_record(
+                folder=folder,
+                face_image_path=face_image_path,
+                frame_path=frame_path,
+                key_points_image_path=key_points_image_path,
+                result=result
+            )
+
+            # 自动登录并返回双 token
             if not request.user.is_authenticated:
                 login(request, user)
             refresh = RefreshToken.for_user(user)
@@ -135,12 +137,12 @@ class RegisterView(GenericAPIView):
 
     @staticmethod
     def is_valid_email(email):
-        """ 验证email格式 """
+        """ 验证 email 格式 """
         email_regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
         return re.match(email_regex, email)
 
     @staticmethod
     def is_valid_phone(phone):
-        """ 验证手机号格式，假设为11位数字 """
+        """ 验证手机号格式，假设为 11 位数字 """
         phone_regex = r'^\d{11}$'
         return re.match(phone_regex, phone)

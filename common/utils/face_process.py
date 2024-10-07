@@ -10,12 +10,18 @@ Unauthorized copying of this file, via any medium, is strictly prohibited.
 Proprietary and confidential.
 Contact: wangzw@example.com
 """
+import asyncio
+import os
+import uuid
 
 import cv2
 import numpy as np
+from asgiref.sync import sync_to_async
 
+from apps.face_recognition.models import FaceProcessingRecord, UnknownFace
 from common.utils.chroma_client import face_collection
 from common.utils.face_analysis import FaceAnalysis
+from config import settings
 
 faceAnalysis = FaceAnalysis(providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
 faceAnalysis.prepare(ctx_id=0, det_size=(640, 640))
@@ -105,3 +111,97 @@ def process_frame(frame):
         'unknown_faces': unknown_faces,
         'unknown_embeddings': unknown_embeddings
     }
+
+
+def save_face_image(scene, face_image):
+    """
+    登录时进行的人脸识别保存到login文件夹，注册时进行的人脸识别保存到register文件夹，机器人上传的图片人脸识别后保存到robot文件夹。
+    :param scene:
+    :param face_image:
+    :return:
+    """
+    from datetime import datetime
+
+    current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    folder = os.path.join(str(settings.MEDIA_ROOT), 'face_processing', scene, current_time)
+    os.makedirs(folder, exist_ok=True)
+
+    face_image_filename = str(uuid.uuid4()) + ".jpg"
+    face_image_path = os.path.join(folder, face_image_filename)
+    with open(face_image_path, 'wb+') as destination:
+        for chunk in face_image.chunks():
+            destination.write(chunk)
+
+    return {
+        'folder': folder,
+        'face_image_filename': face_image_filename,
+        'face_image_path': face_image_path
+    }
+
+
+# 用于处理同步阻塞的操作，例如 cv2.imwrite
+async def async_write_image(file_path, image):
+    await asyncio.to_thread(cv2.imwrite, file_path, image)
+
+
+@sync_to_async
+def save_face_record(record_data):
+    return FaceProcessingRecord.objects.create(**record_data)
+
+
+@sync_to_async
+def save_unknown_face(record, unknown_face_data):
+    UnknownFace.objects.create(record=record, **unknown_face_data)
+
+
+def get_media_relative_path(file_path):
+    """将文件路径转换为相对于 /media/ 的相对路径"""
+    relative_path = os.path.relpath(file_path, settings.MEDIA_ROOT)
+    return f"/media/{relative_path}".replace('\\', '/')
+
+
+async def save_process_record(folder, face_image_path, frame_path, key_points_image_path, result):
+    """
+    异步保存人脸处理记录到数据库中，包括识别和未识别的情况
+    :param folder:
+    :param face_image_path:
+    :param frame_path:
+    :param key_points_image_path:
+    :param result:
+    :return:
+    """
+
+    # 遍历每个已处理的人脸
+    for face_data in result['processed_faces']:
+        # 创建记录
+        record_data = {
+            'uploaded_image_path': get_media_relative_path(face_image_path),
+            'processed_frame_path': get_media_relative_path(frame_path),
+            'key_points_image_path': get_media_relative_path(key_points_image_path),
+            'identity': face_data['identity'],
+            'confidence': face_data['confidence'],
+            'gender': face_data['gender'],
+            'age': face_data['age'],
+            'embedding': face_data['embedding'],
+        }
+
+        # 使用异步 ORM 创建 FaceProcessingRecord
+        record = await save_face_record(record_data)
+
+        # 如果身份是未知的，保存未知人脸
+        if face_data['identity'] == 'unknown':
+            for i, face_image in enumerate(result['unknown_faces']):
+                unknown_face_path = os.path.join(folder, f'unknown_face_{i}.jpg')
+
+                # 异步保存图片文件
+                await async_write_image(unknown_face_path, face_image)
+
+                # 创建未知人脸记录
+                unknown_face_data = {
+                    'face_image_path': get_media_relative_path(unknown_face_path),
+                    'embedding': result['unknown_embeddings'][i]
+                }
+
+                # 使用异步 ORM 创建 UnknownFace
+                await save_unknown_face(record, unknown_face_data)
