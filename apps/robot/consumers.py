@@ -1,4 +1,3 @@
-import base64
 import json
 import os
 import uuid
@@ -18,27 +17,19 @@ class CameraConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data=None, bytes_data=None):
         try:
-            if not text_data:
-                await self.send_json({"error": "No data received"})
+            # 确保是二进制数据传输
+            if not bytes_data:
+                await self.send_json({"error": "No binary data received"})
                 return
 
-            # 解析 JSON 数据
-            data = json.loads(text_data)
-            base64_image = data.get('image')
-
-            if not base64_image:
-                await self.send_json({"error": "No image data provided"})
-                return
-
-            # 1. 解码 Base64 图片
-            image_data = base64.b64decode(base64_image)
+            # 1. 处理接收到的二进制图片数据
             image_filename = f"{uuid.uuid4()}.jpg"
             image_path = os.path.join(settings.MEDIA_ROOT, 'ws_images', image_filename)
             os.makedirs(os.path.dirname(image_path), exist_ok=True)
 
-            image_file = ContentFile(image_data)
+            image_file = ContentFile(bytes_data)
 
-            # 保存解码后的图片到服务器
+            # 保存二进制图片数据到文件
             with open(image_path, 'wb+') as destination:
                 for chunk in image_file.chunks():
                     destination.write(chunk)
