@@ -26,7 +26,7 @@ application = ProtocolTypeRouter({
     #         path('ws/camera/', CameraConsumer.as_asgi()),
     #     ])
     # ),
-    "websocket": AllowedHostsOriginValidator(
-        AuthMiddlewareStack(URLRouter(websocket_urlpatterns + robot_camera_websocket_urlpatterns))
+    "websocket": AuthMiddlewareStack(
+        URLRouter(websocket_urlpatterns + robot_camera_websocket_urlpatterns)
     ),
 })
