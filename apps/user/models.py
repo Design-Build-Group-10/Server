@@ -2,6 +2,8 @@ from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.db import models
 
+from apps.robot.models import Robot
+
 app_name = 'user'
 
 
@@ -21,7 +23,6 @@ class UserManager(BaseUserManager):
         return self.create_user(username, password, **extra_fields)
 
 
-# Create your models here.
 class User(AbstractBaseUser):
     username = models.CharField(max_length=100, unique=True)
     email = models.EmailField(null=True, blank=True)
@@ -34,6 +35,8 @@ class User(AbstractBaseUser):
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     is_deleted = models.BooleanField(default=False)
+
+    robots = models.ManyToManyField(Robot, related_name='users')
 
     objects = UserManager()
 

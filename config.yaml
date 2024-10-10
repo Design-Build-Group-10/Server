@@ -7,6 +7,9 @@ database:
   password: "asdfghjkl;'"
   host: "localhost"
   port: "3306"
+redis:
+  host: "localhost"
+  port: "6379"
 chroma:
   host: "82.156.184.46"
   port: "8000"

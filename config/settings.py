@@ -37,6 +37,10 @@ def load_config():
             'CHROMA_CONFIG': {
                 'HOST': decouple_config('CHROMA_SERVICE_HOST'),
                 'PORT': decouple_config('CHROMA_SERVER_PORT', cast=int),
+            },
+            'REDIS_CONFIG': {
+                'HOST': decouple_config('REDIS_HOST'),
+                'PORT': decouple_config('REDIS_PORT', cast=int),
             }
         }
     else:
@@ -57,6 +61,10 @@ def load_config():
                 'CHROMA_CONFIG': {
                     'HOST': data['chroma']['host'],
                     'PORT': data['chroma']['port'],
+                },
+                'REDIS_CONFIG': {
+                    'HOST': data['redis']['host'],
+                    'PORT': data['redis']['port'],
                 }
             }
 
@@ -94,6 +102,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'apps.robot',
     'apps.user',
     'apps.face_recognition',
     'rest_framework',
@@ -113,9 +122,13 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# settings.py
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [(config['REDIS_CONFIG']['HOST'], config['REDIS_CONFIG']['PORT'])],
+        },
     },
 }
 
