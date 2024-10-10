@@ -4,7 +4,8 @@ import cv2
 import numpy as np
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
-from django.core.files.base import ContentFile
+
+from common.utils.detect_face import detect_face_in_image
 
 
 class CameraConsumer(AsyncWebsocketConsumer):
@@ -62,6 +63,7 @@ class CameraConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data=None, bytes_data=None):
         try:
             print("Receiving data...")
+            # 获取 OpenCV 数据目录的路径
             # 确保是二进制数据传输
             if not bytes_data:
                 print("No binary data received.")
@@ -70,10 +72,20 @@ class CameraConsumer(AsyncWebsocketConsumer):
 
             print("Binary data received, processing image...")
 
-            image_file = ContentFile(bytes_data)
+            if not detect_face_in_image(bytes_data):
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'send_image',
+                        'image_data': bytes_data,
+                    }
+                )
+                return
+
+            # image_file = ContentFile(bytes_data)
 
             # 将二进制数据读入 OpenCV
-            np_arr = np.frombuffer(image_file.read(), np.uint8)
+            np_arr = np.frombuffer(bytes_data, np.uint8)
             frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
             if frame is None:
                 print("Invalid image file, cannot read.")
