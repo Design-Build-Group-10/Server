@@ -1,13 +1,13 @@
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
+from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from apps.shop.models import Shop
 from apps.product.models import Product
+from apps.product.serializers import ProductSerializer
+from apps.shop.models import Shop
 from common.utils.response import success_response, not_found_response, internal_error_response, bad_request_response, \
     unauthorized_response
-from apps.product.serializers import ProductSerializer
 
 
 class AddProductToShopView(APIView):
@@ -70,14 +70,14 @@ class RemoveProductFromShopView(APIView):
 
 class UpdateProductView(APIView):
     """
-    允许管理员通过 PATCH 方法修改商品信息
+    允许管理员修改商品信息
     支持 multipart/form-data 格式，接收图片等文件
     """
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
-    parser_classes = [MultiPartParser, FormParser]  # 支持 multipart/form-data
+    parser_classes = [MultiPartParser, FormParser]
 
-    def patch(self, request, product_id):
+    def post(self, request, product_id):
         try:
             product = Product.objects.get(id=product_id)
 
@@ -86,8 +86,13 @@ class UpdateProductView(APIView):
             if not shop or shop.creator != request.user:
                 return unauthorized_response(message="You are not authorized to manage this shop")
 
-            # 处理部分更新，支持 form-data 格式
-            serializer = ProductSerializer(product, data=request.data, partial=True)
+            # 如果 image 字段不在 request.data 中，则清空数据库中的 image 字段
+            if 'image' not in request.data:
+                product.image = None  # 清空 image 字段
+                product.save(update_fields=['image'])  # 保存更新
+
+            # 处理全量更新，覆盖其他字段
+            serializer = ProductSerializer(product, data=request.data)
             if serializer.is_valid():
                 serializer.save()
                 return success_response(data=serializer.data, message="Product updated successfully")

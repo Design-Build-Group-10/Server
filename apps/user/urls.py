@@ -1,5 +1,6 @@
 from django.urls import path
 
+from apps.shop.views.info import UserShopListView
 from apps.user.views.product import UserAddressView, UserFollowedShopsView, UserFavoriteProductsView, \
     UserBrowseHistoryView
 from apps.user.views.profile import ProfileView, UserAvatar, UserFace
@@ -19,4 +20,5 @@ urlpatterns = [
     path('favorites/', UserFavoriteProductsView.as_view(), name='user-favorites'),
     path('followed-shops/', UserFollowedShopsView.as_view(), name='user-followed-shops'),
     path('browse-history/', UserBrowseHistoryView.as_view(), name='user-browse-history'),
+    path('shops/', UserShopListView.as_view(), name='user-shop-list'),
 ]
