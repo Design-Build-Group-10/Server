@@ -3,13 +3,20 @@
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 
+from apps.product.serializers import ProductSerializer
+from apps.shop.serializers import ShopSerializer
 from apps.user.models import User
 
 
 class UserSerializer(serializers.ModelSerializer):
+    favorite_products = ProductSerializer(many=True, read_only=True)
+    followed_shops = ShopSerializer(many=True, read_only=True)
+    browse_history = ProductSerializer(many=True, read_only=True)
+
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'phone', 'avatar', 'face')
+        fields = ('id', 'username', 'email', 'phone', 'avatar', 'face', 'shipping_address',
+                  'payment_method', 'favorite_products', 'followed_shops', 'browse_history')
         read_only_fields = ['id', 'username', 'face', 'created_at', 'updated_at']
 
 
