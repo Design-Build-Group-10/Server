@@ -3,8 +3,8 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from common.utils.response import success_response, bad_request_response
-from .models import Order
-from .serializers import OrderSerializer
+from apps.order.models import Order
+from apps.order.serializers import OrderSerializer
 
 
 class OrderListView(APIView):
@@ -18,7 +18,7 @@ class OrderListView(APIView):
         try:
             orders = Order.objects.filter(user=request.user)
             serializer = OrderSerializer(orders, many=True)
-            return success_response(data=serializer.data)
+            return success_response(data={"orderList": serializer.data})
         except Exception as e:
             return bad_request_response(f"Failed to retrieve orders: {str(e)}")
 
@@ -34,7 +34,7 @@ class OrderDetailView(APIView):
         try:
             order = Order.objects.get(id=order_id, user=request.user)
             serializer = OrderSerializer(order)
-            return success_response(data=serializer.data)
+            return success_response(data={"orderInfo": serializer.data})
         except Order.DoesNotExist:
             return bad_request_response(f"Order with id {order_id} not found")
         except Exception as e:

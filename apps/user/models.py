@@ -4,7 +4,6 @@ from django.db import models
 
 from apps.product.models import Product
 from apps.robot.models import Robot
-from apps.shop.models import Shop
 
 app_name = 'user'
 
@@ -43,7 +42,7 @@ class User(AbstractBaseUser):
     shipping_address = models.TextField(null=True, blank=True)
     payment_method = models.CharField(max_length=50, null=True, blank=True)
     favorite_products = models.ManyToManyField(Product, related_name='favorited_by_users', blank=True)
-    followed_shops = models.ManyToManyField(Shop, related_name='followed_by_users', blank=True)
+    followed_shops = models.ManyToManyField('shop.Shop', related_name='followed_by_users', blank=True)
     browse_history = models.ManyToManyField(Product, related_name='browsed_by_users', blank=True)
 
     objects = UserManager()

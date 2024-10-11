@@ -3,8 +3,8 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from common.utils.response import success_response, bad_request_response
-from .models import Shop
-from .serializers import ShopSerializer
+from apps.shop.models import Shop
+from apps.shop.serializers import ShopSerializer
 
 
 class ShopListView(APIView):
@@ -18,7 +18,7 @@ class ShopListView(APIView):
         try:
             shops = Shop.objects.all()
             serializer = ShopSerializer(shops, many=True)
-            return success_response(data=serializer.data)
+            return success_response(data={"shopList": serializer.data})
         except Exception as e:
             return bad_request_response(f"Failed to retrieve shops: {str(e)}")
 
@@ -34,7 +34,7 @@ class ShopDetailView(APIView):
         try:
             shop = Shop.objects.get(id=shop_id)
             serializer = ShopSerializer(shop)
-            return success_response(data=serializer.data)
+            return success_response(data={"shopInfo": serializer.data})
         except Shop.DoesNotExist:
             return bad_request_response(f"Shop with id {shop_id} not found")
         except Exception as e:

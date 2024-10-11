@@ -4,7 +4,7 @@ database:
   engine: "dj_db_conn_pool.backends.mysql"
   name: "server_bot"
   user: "root"
-  password: "asdfghjkl;'"
+  password: "Zzy13152810650."
   host: "localhost"
   port: "3306"
 redis:

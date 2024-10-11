@@ -2,22 +2,20 @@
 
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
-
-from apps.product.serializers import ProductSerializer
-from apps.shop.serializers import ShopSerializer
 from apps.user.models import User
 
 
 class UserSerializer(serializers.ModelSerializer):
-    favorite_products = ProductSerializer(many=True, read_only=True)
-    followed_shops = ShopSerializer(many=True, read_only=True)
-    browse_history = ProductSerializer(many=True, read_only=True)
+    role = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'phone', 'avatar', 'face', 'shipping_address',
-                  'payment_method', 'favorite_products', 'followed_shops', 'browse_history')
+                  'payment_method', 'role')
         read_only_fields = ['id', 'username', 'face', 'created_at', 'updated_at']
+
+    def get_role(self, obj):
+        return 'admin' if obj.is_staff else 'user'
 
 
 class LoginSerializer(serializers.ModelSerializer):
@@ -43,3 +41,27 @@ class RegisterSerializer(serializers.ModelSerializer):
         # 确保密码以加密形式存储
         validated_data['password'] = make_password(validated_data['password'])
         return super(RegisterSerializer, self).create(validated_data)
+
+
+class AddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['shipping_address']
+
+
+class FavoriteProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['favorite_products']
+
+
+class FollowedShopsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['followed_shops']
+
+
+class BrowseHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['browse_history']

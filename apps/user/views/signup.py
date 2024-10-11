@@ -10,6 +10,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.cart.models import Cart
 from apps.user.models import User
 from apps.user.serializers import RegisterSerializer, UserSerializer
 from common.utils.chroma_client import save_to_chroma
@@ -100,6 +101,8 @@ class RegisterView(GenericAPIView):
             relative_face_path = os.path.join('face_images', user.username, res['face_image_filename'])
             user.face = relative_face_path
             user.save()
+
+            Cart.objects.create(user=user)
 
             # 将 embedding 与用户的 username 绑定，并保存到 CHROMA 数据库中
             save_to_chroma(user.username, embedding)
