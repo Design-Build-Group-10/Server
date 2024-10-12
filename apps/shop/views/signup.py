@@ -18,7 +18,6 @@ class RegisterShopView(APIView):
     def post(self, request):
         try:
             serializer = ShopSerializer(data=request.data)
-            print(serializer)
             if serializer.is_valid():
                 shop = serializer.save(creator=request.user)
                 return success_response(data=ShopSerializer(shop).data, message="Shop registered successfully")

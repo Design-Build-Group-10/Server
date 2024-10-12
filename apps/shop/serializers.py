@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.product.models import Product
 from apps.product.serializers import ProductSerializer
 from apps.shop.models import Shop
 
@@ -8,6 +9,12 @@ class ShopSerializer(serializers.ModelSerializer):
     startTime = serializers.TimeField(source='start_time', required=False, allow_null=True)
     endTime = serializers.TimeField(source='end_time', required=False, allow_null=True)
     logo = serializers.ImageField(required=False, allow_null=True)
+    featured_products = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Product.objects.all(),
+        required=False,
+        allow_empty=True
+    )
 
     class Meta:
         model = Shop
