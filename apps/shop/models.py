@@ -11,6 +11,12 @@ class Shop(models.Model):
     description = models.TextField()
     featured_products = models.ManyToManyField(Product, related_name='featured_in_shops')
     promotions = models.TextField(blank=True, null=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    start_time = models.TimeField(blank=True, null=True)
+    end_time = models.TimeField(blank=True, null=True)
+    logo = models.ImageField(upload_to='shop_logos/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

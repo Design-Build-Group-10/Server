@@ -47,7 +47,7 @@ class UserFace(APIView):
     scene = 'user_face'  # 场景名称，用于保存到不同的文件夹
 
     @transaction.atomic
-    def put(self, request):
+    async def put(self, request):
         user = request.user
 
         # 1. 检查是否上传了 face 文件
@@ -94,7 +94,7 @@ class UserFace(APIView):
             cv2.imwrite(frame_path, result['frame'])
             cv2.imwrite(key_points_image_path, result['key_points_image'])
 
-            save_process_record(
+            await save_process_record(
                 folder=folder,
                 face_image_path=face_image_path,
                 frame_path=frame_path,
