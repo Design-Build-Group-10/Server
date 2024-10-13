@@ -35,8 +35,8 @@ class ProfileView(APIView):
                 user.email = data['email']
             if 'phone' in data and data['phone']:
                 user.phone = data['phone']
-            if 'address' in data and data['address']:
-                user.shipping_address = data['address']
+            if 'shipping_address' in data and data['shipping_address']:
+                user.shipping_address = data['shipping_address']
             if 'payment_method' in data and data['payment_method']:
                 user.payment_method = data['payment_method']
 
