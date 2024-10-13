@@ -24,6 +24,29 @@ class ProfileView(APIView):
         except Exception as e:
             return internal_error_response(f"Failed to retrieve profile: {str(e)}")
 
+    @staticmethod
+    def post(request):
+        try:
+            user = request.user
+            data = request.data
+
+            # 更新用户信息，每个字段都是可选的
+            if 'email' in data and data['email']:
+                user.email = data['email']
+            if 'phone' in data and data['phone']:
+                user.phone = data['phone']
+            if 'address' in data and data['address']:
+                user.shipping_address = data['address']
+            if 'payment_method' in data and data['payment_method']:
+                user.payment_method = data['payment_method']
+
+            # 保存更新后的用户信息
+            user.save()
+
+            return success_response(data=UserSerializer(user, many=False).data)
+        except Exception as e:
+            return internal_error_response(f"Failed to update profile: {str(e)}")
+
 
 class UserAvatar(APIView):
     authentication_classes = [JWTAuthentication]
