@@ -1,13 +1,11 @@
 import json
-import os
-import uuid
+from datetime import timedelta
 
 import cv2
+import numpy as np
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
-from django.core.files.base import ContentFile
-
-from config import settings
+from django.utils import timezone
 
 
 class CameraConsumer(AsyncWebsocketConsumer):
@@ -73,26 +71,9 @@ class CameraConsumer(AsyncWebsocketConsumer):
 
             print("Binary data received, processing image...")
 
-            # 1. 处理接收到的二进制图片数据
-            image_filename = f"{uuid.uuid4()}.jpg"
-            image_path = os.path.join(settings.MEDIA_ROOT, 'ws_images', image_filename)
-            os.makedirs(os.path.dirname(image_path), exist_ok=True)
-
-            image_file = ContentFile(bytes_data)
-
-            # 保存二进制图片数据到文件
-            with open(image_path, 'wb+') as destination:
-                for chunk in image_file.chunks():
-                    destination.write(chunk)
-
-            print(f"Image saved to: {image_path}")
-
-            # # 将二进制数据读入 OpenCV
-            # np_arr = np.frombuffer(bytes_data, np.uint8)
-            # frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-
-            # 2. 使用 OpenCV 读取图片文件
-            frame = cv2.imread(image_path)
+            # 将二进制数据读入 OpenCV
+            np_arr = np.frombuffer(bytes_data, np.uint8)
+            frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
             if frame is None:
                 print("Invalid image file, cannot read.")
                 await self.send_json({"error": "Invalid image file"})
@@ -100,72 +81,31 @@ class CameraConsumer(AsyncWebsocketConsumer):
 
             print("Image successfully loaded, processing with OpenCV...")
 
-            # 3. 处理图像
-            from common.utils.face_process import process_frame, save_face_image, save_process_record
+            # 处理图像
+            from common.utils.face_process import simple_process_frame, save_face_image, save_process_record
 
-            result = process_frame(frame)
+            result = simple_process_frame(frame)
 
             # 获取所有处理后的面部图像列表
             processed_faces = result['frame']
 
-            # 4. 保存 face 图像和处理记录
-            face_image_info = save_face_image('camera_ws', image_file)
-            folder = face_image_info['folder']
-            face_image_path = face_image_info['face_image_path']
+            user_info = result['processed_faces']
 
-            frame_path = os.path.join(folder, 'processed_frame.jpg')
-            key_points_image_path = os.path.join(folder, 'key_points_image.jpg')
+            await self.handlePoints(user_info)
 
-            cv2.imwrite(frame_path, result['frame'])
-            cv2.imwrite(key_points_image_path, result['key_points_image'])
+            # 将处理后的图像转为二进制格式
+            ret, buffer = cv2.imencode('.jpg', processed_faces)
+            if not ret:
+                print("Failed to encode image.")
+                await self.send_json({"error": "Failed to encode image"})
+                return
 
-            print(f"Processed frame saved at: {frame_path}")
-            print(f"Key points image saved at: {key_points_image_path}")
-
-            await save_process_record(
-                folder=folder,
-                face_image_path=face_image_path,
-                frame_path=frame_path,
-                key_points_image_path=key_points_image_path,
-                result=result
-            )
-            print("Process record saved.")
-
-            # 转换绝对路径为相对路径
-            def get_media_relative_path(file_path):
-                relative_path = os.path.relpath(file_path, settings.MEDIA_ROOT)
-                return f"{settings.MEDIA_URL}{relative_path}".replace('\\', '/')
-
-            # # 3. 将处理后的图像转为二进制格式
-            # ret, buffer = cv2.imencode('.jpg', processed_faces)
-            # if not ret:
-            #     print("Failed to encode image.")
-            #     await self.send_json({"error": "Failed to encode image"})
-            #     return
-
-            # 5. 返回处理后的结果
-            response_data = {
-                "message": "Image processed successfully",
-                "uploaded_image": get_media_relative_path(face_image_info['face_image_path']),
-                "processed_frame": get_media_relative_path(frame_path),
-                "key_points_image": get_media_relative_path(key_points_image_path),
-            }
-
-            # # 4. 将处理后的二进制图像数据发送到房间组
-            # await self.channel_layer.group_send(
-            #     self.room_group_name,
-            #     {
-            #         'type': 'send_image',
-            #         'image_data': buffer.tobytes(),
-            #     }
-            # )
-
-            # 6. 将处理后的图像发送到房间内的所有用户
+            # 将处理后的二进制图像数据发送到房间组
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
-                    'type': 'send_json',
-                    'processed_data': response_data,
+                    'type': 'send_image',
+                    'image_data': buffer.tobytes(),
                 }
             )
 
@@ -181,6 +121,43 @@ class CameraConsumer(AsyncWebsocketConsumer):
         print(f"Sending image data to room: {self.room_group_name}")
         # 将二进制图像数据直接发送给客户端
         await self.send(bytes_data=event['image_data'])
+
+    @sync_to_async
+    def handlePoints(self, user_info):
+        from apps.user.models import User, Message
+
+        # 遍历处理后的脸部数据
+        for face_data in user_info:
+            identity = face_data.get('identity')
+
+            # 如果身份不是 'unknown'，则尝试从数据库中获取用户
+            if identity != 'unknown':
+                try:
+                    # 查找与身份匹配的用户
+                    user = User.objects.get(username=identity)
+
+                    # 获取当前时间
+                    now = timezone.now()
+
+                    # 检查距离上一次检测时间是否超过10分钟
+                    if user.last_detected is None or (now - user.last_detected) > timedelta(minutes=10):
+                        # 增加用户积分
+                        user.points += 5
+                        # 更新 last_detected 为当前时间
+                        user.last_detected = now
+                        # 保存用户数据
+                        user.save()
+
+                        # 向用户发送一条消息
+                        Message.objects.create(
+                            user=user,
+                            title="Robot Detect Reward",
+                            description="You have received 5 reward points for being detected after 10 minutes.",
+                            created_at=now
+                        )
+
+                except User.DoesNotExist:
+                    print(f"User with username '{identity}' not found")
 
 
 class TransmitConsumer(AsyncWebsocketConsumer):
