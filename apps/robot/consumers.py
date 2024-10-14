@@ -1,9 +1,13 @@
 import json
+import os
+import uuid
 
 import cv2
-import numpy as np
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.core.files.base import ContentFile
+
+from config import settings
 
 
 class CameraConsumer(AsyncWebsocketConsumer):
@@ -69,11 +73,26 @@ class CameraConsumer(AsyncWebsocketConsumer):
 
             print("Binary data received, processing image...")
 
-            # image_file = ContentFile(bytes_data)
+            # 1. 处理接收到的二进制图片数据
+            image_filename = f"{uuid.uuid4()}.jpg"
+            image_path = os.path.join(settings.MEDIA_ROOT, 'ws_images', image_filename)
+            os.makedirs(os.path.dirname(image_path), exist_ok=True)
 
-            # 将二进制数据读入 OpenCV
-            np_arr = np.frombuffer(bytes_data, np.uint8)
-            frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            image_file = ContentFile(bytes_data)
+
+            # 保存二进制图片数据到文件
+            with open(image_path, 'wb+') as destination:
+                for chunk in image_file.chunks():
+                    destination.write(chunk)
+
+            print(f"Image saved to: {image_path}")
+
+            # # 将二进制数据读入 OpenCV
+            # np_arr = np.frombuffer(bytes_data, np.uint8)
+            # frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+            # 2. 使用 OpenCV 读取图片文件
+            frame = cv2.imread(image_path)
             if frame is None:
                 print("Invalid image file, cannot read.")
                 await self.send_json({"error": "Invalid image file"})
@@ -89,19 +108,64 @@ class CameraConsumer(AsyncWebsocketConsumer):
             # 获取所有处理后的面部图像列表
             processed_faces = result['frame']
 
-            # 3. 将处理后的图像转为二进制格式
-            ret, buffer = cv2.imencode('.jpg', processed_faces)
-            if not ret:
-                print("Failed to encode image.")
-                await self.send_json({"error": "Failed to encode image"})
-                return
+            # 4. 保存 face 图像和处理记录
+            face_image_info = save_face_image('camera_ws', image_file)
+            folder = face_image_info['folder']
+            face_image_path = face_image_info['face_image_path']
 
-            # 4. 将处理后的二进制图像数据发送到房间组
+            frame_path = os.path.join(folder, 'processed_frame.jpg')
+            key_points_image_path = os.path.join(folder, 'key_points_image.jpg')
+
+            cv2.imwrite(frame_path, result['frame'])
+            cv2.imwrite(key_points_image_path, result['key_points_image'])
+
+            print(f"Processed frame saved at: {frame_path}")
+            print(f"Key points image saved at: {key_points_image_path}")
+
+            await save_process_record(
+                folder=folder,
+                face_image_path=face_image_path,
+                frame_path=frame_path,
+                key_points_image_path=key_points_image_path,
+                result=result
+            )
+            print("Process record saved.")
+
+            # 转换绝对路径为相对路径
+            def get_media_relative_path(file_path):
+                relative_path = os.path.relpath(file_path, settings.MEDIA_ROOT)
+                return f"{settings.MEDIA_URL}{relative_path}".replace('\\', '/')
+
+            # # 3. 将处理后的图像转为二进制格式
+            # ret, buffer = cv2.imencode('.jpg', processed_faces)
+            # if not ret:
+            #     print("Failed to encode image.")
+            #     await self.send_json({"error": "Failed to encode image"})
+            #     return
+
+            # 5. 返回处理后的结果
+            response_data = {
+                "message": "Image processed successfully",
+                "uploaded_image": get_media_relative_path(face_image_info['face_image_path']),
+                "processed_frame": get_media_relative_path(frame_path),
+                "key_points_image": get_media_relative_path(key_points_image_path),
+            }
+
+            # # 4. 将处理后的二进制图像数据发送到房间组
+            # await self.channel_layer.group_send(
+            #     self.room_group_name,
+            #     {
+            #         'type': 'send_image',
+            #         'image_data': buffer.tobytes(),
+            #     }
+            # )
+
+            # 6. 将处理后的图像发送到房间内的所有用户
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
-                    'type': 'send_image',
-                    'image_data': buffer.tobytes(),
+                    'type': 'send_json',
+                    'processed_data': response_data,
                 }
             )
 

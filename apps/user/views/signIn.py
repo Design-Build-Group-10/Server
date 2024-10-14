@@ -1,16 +1,18 @@
 # user/views/signIn.py
 # 用户登录视图
 import os
+from datetime import timedelta
 
 import cv2
 from django.contrib.auth import authenticate, login
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from rest_framework.generics import GenericAPIView
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.user.models import User
+from apps.user.models import User, Message
 from apps.user.serializers import LoginSerializer
 from common.utils.chroma_client import face_collection
 from common.utils.face_process import process_frame, save_process_record, save_face_image
@@ -37,6 +39,20 @@ class LoginView(GenericAPIView):
 
             if not user:
                 return bad_request_response('用户名或密码错误')
+
+            # Check if more than 10 minutes have passed since the last login
+            now = timezone.now()
+            if user.last_login and (now - user.last_login) > timedelta(minutes=10):
+                user.points += 5
+                user.save()
+
+                # Create a message notifying the user about their reward points
+                Message.objects.create(
+                    user=user,
+                    title="Reward Points Earned",
+                    description="You have received 5 reward points for logging in after 10 minutes of inactivity.",
+                    created_at=now
+                )
 
             login(request, user)
             refresh = RefreshToken.for_user(user)
@@ -104,6 +120,21 @@ class FaceLoginView(GenericAPIView):
                 user = User.objects.get(username=user_id)
             except User.DoesNotExist:
                 return bad_request_response(f"User with username '{user_id}' not found")
+
+            # Check if more than 10 minutes have passed since the last login
+            now = timezone.now()
+            if user.last_login and (now - user.last_login) > timedelta(minutes=10):
+                # Increase user's points by 5
+                user.points += 5
+                user.save()
+
+                # Create a message notifying the user about their reward points
+                Message.objects.create(
+                    user=user,
+                    title="Reward Points Earned",
+                    description="You have received 5 reward points for logging in after 10 minutes of inactivity.",
+                    created_at=now
+                )
 
             # 生成 JWT token
             refresh = RefreshToken.for_user(user)

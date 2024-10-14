@@ -3,7 +3,7 @@ from django.urls import path
 from apps.shop.views.info import UserShopListView
 from apps.user.views.product import UserAddressView, UserFollowedShopsView, UserFavoriteProductsView, \
     UserBrowseHistoryView
-from apps.user.views.profile import ProfileView, UserAvatar, UserFace
+from apps.user.views.profile import ProfileView, UserAvatar, UserFace, ValidateTokenView
 from apps.user.views.signIn import LoginView, FaceLoginView
 from apps.user.views.signup import RegisterView
 
@@ -21,4 +21,5 @@ urlpatterns = [
     path('followed-shops/', UserFollowedShopsView.as_view(), name='user-followed-shops'),
     path('browse-history/', UserBrowseHistoryView.as_view(), name='user-browse-history'),
     path('shops/', UserShopListView.as_view(), name='user-shop-list'),
+    path('validate-token/', ValidateTokenView.as_view(), name='validate_token'),
 ]

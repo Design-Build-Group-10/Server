@@ -5,6 +5,7 @@ from django.db import transaction
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
 from apps.user.serializers import UserSerializer
 from common.utils.chroma_client import save_to_chroma
@@ -132,3 +133,14 @@ class UserFace(APIView):
             # 捕获所有异常并返回内部错误响应
             transaction.set_rollback(True)
             return internal_error_response(f"Failed to process face image: {str(e)}")
+
+
+class ValidateTokenView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            return success_response(data={"valid": True}, message="Token is valid")
+        except (InvalidToken, TokenError):
+            return bad_request_response(message="Invalid Token")
