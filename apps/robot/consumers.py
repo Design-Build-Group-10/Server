@@ -5,8 +5,6 @@ import numpy as np
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-from common.utils.detect_face import detect_face_in_image
-
 
 class CameraConsumer(AsyncWebsocketConsumer):
     def __init__(self, *args, **kwargs):
@@ -63,7 +61,6 @@ class CameraConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data=None, bytes_data=None):
         try:
             print("Receiving data...")
-            # 获取 OpenCV 数据目录的路径
             # 确保是二进制数据传输
             if not bytes_data:
                 print("No binary data received.")
@@ -71,16 +68,6 @@ class CameraConsumer(AsyncWebsocketConsumer):
                 return
 
             print("Binary data received, processing image...")
-
-            if not detect_face_in_image(bytes_data):
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {
-                        'type': 'send_image',
-                        'image_data': bytes_data,
-                    }
-                )
-                return
 
             # image_file = ContentFile(bytes_data)
 
@@ -114,7 +101,95 @@ class CameraConsumer(AsyncWebsocketConsumer):
                 self.room_group_name,
                 {
                     'type': 'send_image',
-                    'image_data': buffer.tobytes(),  # 将二进制图像数据传递
+                    'image_data': buffer.tobytes(),
+                }
+            )
+
+        except Exception as e:
+            print(f"Error during image processing: {str(e)}")
+            await self.send_json({"error": f"Failed to process image: {str(e)}"})
+
+    async def send_json(self, data):
+        print(f"Sending JSON data: {data}")
+        await self.send(text_data=json.dumps(data))
+
+    async def send_image(self, event):
+        print(f"Sending image data to room: {self.room_group_name}")
+        # 将二进制图像数据直接发送给客户端
+        await self.send(bytes_data=event['image_data'])
+
+
+class CameraHandledConsumer(AsyncWebsocketConsumer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(args, kwargs)
+        self.robot = None
+        self.serial_number = None
+        self.room_group_name = None
+
+    async def connect(self):
+        from apps.user.models import Robot
+        # 1. 检查是否提供了 serial_number
+        serial_number = self.scope['url_route']['kwargs'].get('serial_number')
+        if not serial_number:
+            print("No serial_number provided, closing connection.")
+            await self.close()
+            return
+
+        print(f"Connecting with serial_number: {serial_number}")
+
+        # 2. 查询 serial_number 对应的机器人
+        try:
+            self.robot = await sync_to_async(Robot.objects.get)(serial_number=serial_number)
+            print(f"Robot found: {self.robot.name}")
+        except Robot.DoesNotExist:
+            print(f"Robot with serial_number {serial_number} does not exist, closing connection.")
+            await self.close()
+            return
+
+        # 设置房间组名为机器人 serial_number
+        self.serial_number = serial_number
+        self.room_group_name = f"robot_{self.serial_number}"
+        print(f"Room group name set to: {self.room_group_name}")
+
+        # 3. 将用户加入房间组
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name
+        )
+        print(f"User added to group: {self.room_group_name}")
+
+        await self.accept()
+        print("Connection accepted.")
+
+    async def disconnect(self, close_code):
+        # 离开房间组
+        print(f"Disconnecting from group: {self.room_group_name}")
+        if self.room_group_name:
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name
+            )
+        print("Disconnected.")
+
+    async def receive(self, text_data=None, bytes_data=None):
+        try:
+            print("Receiving data...")
+            # 确保是二进制数据传输
+            if not bytes_data:
+                print("No binary data received.")
+                await self.send_json({"error": "No binary data received"})
+                return
+
+            print("Binary data received, processing image...")
+
+            # image_file = ContentFile(bytes_data)
+
+            # 4. 将二进制图像数据发送到房间组
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'send_image',
+                    'image_data': bytes_data,
                 }
             )
 
