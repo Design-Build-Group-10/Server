@@ -62,8 +62,9 @@ class MarkMessageAsReadView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, message_id):
+    def post(self, request):
         user = request.user
+        message_id = request.data.get('message_id')
         try:
             # 获取消息，确保消息属于当前用户
             message = user.messages.get(id=message_id)
