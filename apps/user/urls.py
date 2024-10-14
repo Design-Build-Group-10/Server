@@ -1,6 +1,7 @@
 from django.urls import path
 
 from apps.shop.views.info import UserShopListView
+from apps.user.views.message import AllMessagesView, UnreadMessagesView, MarkMessageAsReadView
 from apps.user.views.product import UserAddressView, UserFollowedShopsView, UserFavoriteProductsView, \
     UserBrowseHistoryView
 from apps.user.views.profile import ProfileView, UserAvatar, UserFace, ValidateTokenView
@@ -22,4 +23,8 @@ urlpatterns = [
     path('browse-history/', UserBrowseHistoryView.as_view(), name='user-browse-history'),
     path('shops/', UserShopListView.as_view(), name='user-shop-list'),
     path('validate-token/', ValidateTokenView.as_view(), name='validate_token'),
+    path('allmessages/', AllMessagesView.as_view(), name='all_messages'),
+    path('unreadmessages/', UnreadMessagesView.as_view(), name='unread_messages'),
+    path('markread/', MarkMessageAsReadView.as_view(), name='mark_read'),
+    path('browse-history/', UserBrowseHistoryView.as_view(), name='user-browse-history'),
 ]
