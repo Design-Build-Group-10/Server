@@ -119,7 +119,7 @@ class CameraConsumer(AsyncWebsocketConsumer):
         await self.send(bytes_data=event['image_data'])
 
 
-class CameraHandledConsumer(AsyncWebsocketConsumer):
+class TransmitConsumer(AsyncWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(args, kwargs)
         self.robot = None
