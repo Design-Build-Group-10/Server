@@ -152,7 +152,7 @@ class CameraConsumer(AsyncWebsocketConsumer):
                         Message.objects.create(
                             user=user,
                             title="Robot Detect Reward",
-                            description="You have received 5 reward points for being detected after 10 minutes.",
+                            description="🎉 You have received 5 reward points for being detected by robot.",
                             created_at=now
                         )
 

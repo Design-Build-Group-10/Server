@@ -50,7 +50,7 @@ class LoginView(GenericAPIView):
                 Message.objects.create(
                     user=user,
                     title="Reward Points Earned",
-                    description="You have received 5 reward points for logging in after 10 minutes of inactivity.",
+                    description="🎉 You have received 5 reward points for logging in.",
                     created_at=now
                 )
 
@@ -132,7 +132,7 @@ class FaceLoginView(GenericAPIView):
                 Message.objects.create(
                     user=user,
                     title="Reward Points Earned",
-                    description="You have received 5 reward points for logging in after 10 minutes of inactivity.",
+                    description="🎉 You have received 5 reward points for logging in.",
                     created_at=now
                 )
 
