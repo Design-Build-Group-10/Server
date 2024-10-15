@@ -57,5 +57,5 @@ class User(AbstractBaseUser):
         return self.is_superuser
 
     class Meta:
-        verbose_name = '用户'
+        verbose_name = 'User'
         verbose_name_plural = verbose_name
