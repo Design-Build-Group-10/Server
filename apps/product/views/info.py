@@ -25,7 +25,7 @@ class ProductListView(APIView):
 
 class ProductDetailView(APIView):
     """
-    获取某个具体商品的信息
+    获取某个具体商品的信息并更新浏览历史
     """
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -33,8 +33,19 @@ class ProductDetailView(APIView):
     def get(self, request, product_id):
         try:
             product = Product.objects.get(id=product_id)
+            user = request.user
+
+            # If the product exists in the user's browsing history, remove it first
+            if product in user.browse_history.all():
+                user.browse_history.remove(product)
+
+            # Add the product back as the latest entry in browsing history
+            user.browse_history.add(product)
+
+            # Serialize and return the product information
             serializer = ProductSerializer(product)
             return success_response(data={"productInfo": serializer.data})
+
         except Product.DoesNotExist:
             return bad_request_response(f"Product with id {product_id} not found")
         except Exception as e:

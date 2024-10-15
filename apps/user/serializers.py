@@ -2,6 +2,7 @@
 
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
+
 from apps.user.models import User
 
 
@@ -11,8 +12,8 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'phone', 'avatar', 'face', 'shipping_address',
-                  'payment_method', 'role')
-        read_only_fields = ['id', 'username', 'face', 'created_at', 'updated_at']
+                  'payment_method', 'role', 'points')
+        read_only_fields = ['id', 'username', 'face', 'created_at', 'updated_at', 'points']
 
     def get_role(self, obj):
         return 'admin' if obj.is_staff else 'user'

@@ -101,16 +101,16 @@ class CameraConsumer(AsyncWebsocketConsumer):
             result = process_frame(frame)
             # print(f"Face processing result: {result}")
 
-            # 检查人脸数量
-            num_faces = len(result['processed_faces'])
-            if num_faces == 0:
-                print("No face detected in the image.")
-                await self.send_json({"error": "No face detected in the image"})
-                return
-            elif num_faces > 1:
-                print("Multiple faces detected.")
-                await self.send_json({"error": "Multiple faces detected. Please upload an image with only one face."})
-                return
+            # # 检查人脸数量
+            # num_faces = len(result['processed_faces'])
+            # if num_faces == 0:
+            #     print("No face detected in the image.")
+            #     await self.send_json({"error": "No face detected in the image"})
+            #     return
+            # elif num_faces > 1:
+            #     print("Multiple faces detected.")
+            #     await self.send_json({"error": "Multiple faces detected. Please upload an image with only one face."})
+            #     return
 
             # print("Face detected, proceeding to save image...")
 

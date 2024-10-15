@@ -1,6 +1,7 @@
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.db import models
+from django.utils import timezone
 
 from apps.product.models import Product
 from apps.robot.models import Robot
@@ -30,8 +31,10 @@ class User(AbstractBaseUser):
     phone = models.CharField(max_length=11, null=True, blank=True)
     avatar = models.ImageField(upload_to='avatar', null=True, blank=True)
     face = models.ImageField(upload_to='face', null=True, blank=True)
+    points = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    last_detected = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
@@ -59,3 +62,22 @@ class User(AbstractBaseUser):
     class Meta:
         verbose_name = 'User'
         verbose_name_plural = verbose_name
+
+
+class Message(models.Model):
+    user = models.ForeignKey(User, related_name='messages', on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    type = models.CharField(max_length=50, null=True, blank=True)  # 可选：消息类型
+
+    def mark_as_read(self):
+        """Mark the message as read."""
+        self.is_read = True
+        self.read_at = timezone.now()
+        self.save()
+
+    def __str__(self):
+        return self.title

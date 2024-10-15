@@ -1,9 +1,11 @@
 import json
+from datetime import timedelta
 
 import cv2
 import numpy as np
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.utils import timezone
 
 
 class CameraConsumer(AsyncWebsocketConsumer):
@@ -69,8 +71,6 @@ class CameraConsumer(AsyncWebsocketConsumer):
 
             print("Binary data received, processing image...")
 
-            # image_file = ContentFile(bytes_data)
-
             # 将二进制数据读入 OpenCV
             np_arr = np.frombuffer(bytes_data, np.uint8)
             frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
@@ -81,22 +81,26 @@ class CameraConsumer(AsyncWebsocketConsumer):
 
             print("Image successfully loaded, processing with OpenCV...")
 
-            # 3. 处理图像
-            from common.utils.face_process import process_frame, save_face_image, save_process_record
+            # 处理图像
+            from common.utils.face_process import simple_process_frame, save_face_image, save_process_record
 
-            result = process_frame(frame)
+            result = simple_process_frame(frame)
 
             # 获取所有处理后的面部图像列表
             processed_faces = result['frame']
 
-            # 3. 将处理后的图像转为二进制格式
+            user_info = result['processed_faces']
+
+            await self.handlePoints(user_info)
+
+            # 将处理后的图像转为二进制格式
             ret, buffer = cv2.imencode('.jpg', processed_faces)
             if not ret:
                 print("Failed to encode image.")
                 await self.send_json({"error": "Failed to encode image"})
                 return
 
-            # 4. 将处理后的二进制图像数据发送到房间组
+            # 将处理后的二进制图像数据发送到房间组
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -117,6 +121,43 @@ class CameraConsumer(AsyncWebsocketConsumer):
         print(f"Sending image data to room: {self.room_group_name}")
         # 将二进制图像数据直接发送给客户端
         await self.send(bytes_data=event['image_data'])
+
+    @sync_to_async
+    def handlePoints(self, user_info):
+        from apps.user.models import User, Message
+
+        # 遍历处理后的脸部数据
+        for face_data in user_info:
+            identity = face_data.get('identity')
+
+            # 如果身份不是 'unknown'，则尝试从数据库中获取用户
+            if identity != 'unknown':
+                try:
+                    # 查找与身份匹配的用户
+                    user = User.objects.get(username=identity)
+
+                    # 获取当前时间
+                    now = timezone.now()
+
+                    # 检查距离上一次检测时间是否超过10分钟
+                    if user.last_detected is None or (now - user.last_detected) > timedelta(minutes=10):
+                        # 增加用户积分
+                        user.points += 5
+                        # 更新 last_detected 为当前时间
+                        user.last_detected = now
+                        # 保存用户数据
+                        user.save()
+
+                        # 向用户发送一条消息
+                        Message.objects.create(
+                            user=user,
+                            title="Robot Detect Reward",
+                            description="🎉 You have received 5 reward points for being detected by robot.",
+                            created_at=now
+                        )
+
+                except User.DoesNotExist:
+                    print(f"User with username '{identity}' not found")
 
 
 class TransmitConsumer(AsyncWebsocketConsumer):
