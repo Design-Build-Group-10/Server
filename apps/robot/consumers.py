@@ -3,17 +3,25 @@ from datetime import timedelta
 
 import cv2
 import numpy as np
+import redis
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.utils import timezone
 
+from config import settings
+
 
 class CameraConsumer(AsyncWebsocketConsumer):
     def __init__(self, *args, **kwargs):
-        super().__init__(args, kwargs)
+        super().__init__(*args, **kwargs)
         self.robot = None
         self.serial_number = None
         self.room_group_name = None
+        self.redis_client = redis.StrictRedis(
+            host=settings.config['REDIS_CONFIG']['HOST'],
+            port=settings.config['REDIS_CONFIG']['PORT'],
+            db=0
+        )
 
     async def connect(self):
         from apps.user.models import Robot
@@ -50,6 +58,12 @@ class CameraConsumer(AsyncWebsocketConsumer):
         await self.accept()
         print("Connection accepted.")
 
+        # 检查是否已经有存储的 is_face_detection_enabled 状态，如果没有，默认设置为 False
+        face_detection_status = self.get_face_detection_status()
+        if face_detection_status is None:
+            self.set_face_detection_status(False)
+        print(f"Initial face detection status: {self.get_face_detection_status()}")
+
     async def disconnect(self, close_code):
         # 离开房间组
         print(f"Disconnecting from group: {self.room_group_name}")
@@ -62,6 +76,20 @@ class CameraConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data=None, bytes_data=None):
         try:
+            # 如果收到的是 JSON 文本数据，决定开启/关闭人脸识别
+            if text_data:
+                data = json.loads(text_data)
+                command = data.get("command")
+
+                # 处理控制命令，用于开启/关闭人脸识别
+                if command == "toggle_face_detection":
+                    enabled = data.get("enabled", False)
+                    self.set_face_detection_status(enabled)
+                    status = "enabled" if enabled else "disabled"
+                    print(f"Face detection has been {status}.")
+                    await self.send_json({"status": f"Face detection {status}"})
+                    return
+
             print("Receiving data...")
             # 确保是二进制数据传输
             if not bytes_data:
@@ -69,7 +97,25 @@ class CameraConsumer(AsyncWebsocketConsumer):
                 await self.send_json({"error": "No binary data received"})
                 return
 
-            print("Binary data received, processing image...")
+            print("Binary data received.")
+
+            # 从 Redis 中读取当前 face detection 状态
+            is_face_detection_enabled = self.get_face_detection_status()
+
+            # 如果 face detection 关闭，直接分发原始图像
+            if not is_face_detection_enabled:
+                print("Face detection is disabled. Forwarding raw image data.")
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'send_image',
+                        'image_data': bytes_data,
+                    }
+                )
+                return
+
+            # 当 face detection 启用时，进行图像处理
+            print("Face detection is enabled. Processing image...")
 
             # 将二进制数据读入 OpenCV
             np_arr = np.frombuffer(bytes_data, np.uint8)
@@ -158,6 +204,17 @@ class CameraConsumer(AsyncWebsocketConsumer):
 
                 except User.DoesNotExist:
                     print(f"User with username '{identity}' not found")
+
+    # 从 Redis 中获取当前 face detection 状态
+    def get_face_detection_status(self):
+        status = self.redis_client.get(f"face_detection_status_{self.serial_number}")
+        if status is not None:
+            return status.decode('utf-8') == 'True'
+        return None
+
+    # 将 face detection 状态存储到 Redis 中
+    def set_face_detection_status(self, status):
+        self.redis_client.set(f"face_detection_status_{self.serial_number}", 'True' if status else 'False')
 
 
 class TransmitConsumer(AsyncWebsocketConsumer):
