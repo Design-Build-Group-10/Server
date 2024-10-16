@@ -12,7 +12,21 @@ To view the full project, please visit the following repositories:
 
 ## Table of Contents
 
-[toc]
+1. [Project Overview](#project-overview)
+2. [System Functionality](#system-functionality)
+   - [Image Capture and Transmission](#image-capture-and-transmission)
+   - [Face Detection and Recognition](#face-detection-and-recognition)
+     - [RetinaFace](#retinaface)
+     - [ArcFace](#arcface)
+   - [Remote Data Synchronization & Storage](#remote-data-synchronization--storage)
+     - [Database Integration](#database-integration)
+     - [Data Storage](#data-storage)
+   - [Face Recognition System](#face-recognition-system)
+   - [Workflow Diagram](#workflow-diagram)
+3. [System Workflow](#system-workflow)
+4. [Backend Technology Stack](#backend-technology-stack)
+5. [Deployment Instructions](#deployment-instructions)
+6. [Conclusion](#conclusion)
 
 ## Project Overview
 
